@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "ElectionState": {
+      "title": "Election State",
+      "description": "Master document representing the current active election state",
+      "type": "object",
+      "properties": {
+        "electionId": { "type": "string", "description": "Unique election identifier" },
+        "title": { "type": "string", "description": "Election title" },
+        "totalVotes": { "type": "number", "description": "Total number of verified votes cast" },
+        "maxVotes": { "type": "number", "description": "Maximum vote cap for the election" },
+        "status": { "type": "string", "enum": ["ACTIVE", "PAUSED", "COMPLETED"], "description": "Status of the election" },
+        "candidates": { "type": "array", "description": "List of candidate objects with vote counts" },
+        "startedAt": { "type": "string", "description": "ISO timestamp of when election started" },
+        "completedAt": { "type": "string", "description": "Timestamp of election completion" },
+        "updatedAt": { "type": "string", "description": "Timestamp of last modification" }
+      },
+      "required": ["electionId", "totalVotes", "maxVotes", "status", "candidates"]
+    },
+    "VotedStudent": {
+      "title": "Voted Student Record",
+      "description": "Cryptographic ballot receipt and double-vote guard",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "description": "7-digit student ID starting with 138", "pattern": "^138[0-9]{4}$" },
+        "candidateId": { "type": "string", "description": "ID of the candidate voted for" },
+        "candidateName": { "type": "string", "description": "Name of candidate at time of voting" },
+        "receiptCode": { "type": "string", "description": "Cryptographic receipt verification code" },
+        "voteNumber": { "type": "number", "description": "Sequential vote number in the election" },
+        "timestamp": { "type": "string", "description": "Timestamp string of when vote was cast" }
+      },
+      "required": ["studentId", "candidateId", "receiptCode", "voteNumber", "timestamp"]
+    },
+    "VoteAuditRecord": {
+      "title": "Vote Audit Record",
+      "description": "Individual vote event in the audit trail",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique record id" },
+        "studentId": { "type": "string", "description": "7-digit student ID starting with 138" },
+        "candidateId": { "type": "string", "description": "Candidate ID" },
+        "candidateName": { "type": "string", "description": "Candidate Name" },
+        "receiptCode": { "type": "string", "description": "Cryptographic receipt code" },
+        "voteNumber": { "type": "number", "description": "Vote sequence number" },
+        "timestamp": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["id", "studentId", "candidateId", "receiptCode", "voteNumber", "timestamp"]
+    },
+    "AuthorizedStudent": {
+      "title": "Authorized Student",
+      "description": "Registered student eligible to vote in Bano Qabil election",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "description": "7-digit student ID starting with 138" },
+        "authorized": { "type": "boolean", "description": "Whether voter is actively authorized" },
+        "name": { "type": "string", "description": "Student Name (optional)" }
+      },
+      "required": ["studentId", "authorized"]
+    },
+    "ElectionHistory": {
+      "title": "Election History Archive",
+      "description": "Archived prior election results upon reset",
+      "type": "object",
+      "properties": {
+        "electionId": { "type": "string", "description": "Archive identifier" },
+        "title": { "type": "string", "description": "Election title" },
+        "startedAt": { "type": "string", "description": "Date string of election start" },
+        "completedAt": { "type": "string", "description": "Date string of election conclusion" },
+        "totalVotes": { "type": "number", "description": "Total votes cast in archived election" },
+        "maxVotes": { "type": "number", "description": "Max votes configured for that election" },
+        "winnerName": { "type": "string", "description": "Winner name or Tie" },
+        "isTie": { "type": "boolean", "description": "Whether the election concluded in a tie" },
+        "archivedAt": { "type": "string", "description": "Timestamp of archiving" }
+      },
+      "required": ["electionId", "totalVotes", "archivedAt"]
+    }
+  },
+  "firestore": {
+    "/elections/{electionId}": {
+      "schema": "ElectionState",
+      "description": "Live election tally and status document"
+    },
+    "/elections/{electionId}/voted_students/{studentId}": {
+      "schema": "VotedStudent",
+      "description": "Verified student vote ballots preventing double voting"
+    },
+    "/elections/{electionId}/votes/{voteId}": {
+      "schema": "VoteAuditRecord",
+      "description": "Sequential vote audit trail"
+    },
+    "/authorized_students/{studentId}": {
+      "schema": "AuthorizedStudent",
+      "description": "Student authorization records"
+    },
+    "/election_history/{historyId}": {
+      "schema": "ElectionHistory",
+      "description": "Historical election records"
+    }
+  }
+}

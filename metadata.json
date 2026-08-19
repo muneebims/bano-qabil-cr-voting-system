@@ -1,0 +1,6 @@
+{
+  "name": "Bano Qabil CR Voting System",
+  "description": "A secure, modern class representative voting system with real-time tracking, 100-vote maximum cap, automated winner announcement, audio celebration, and admin audit dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

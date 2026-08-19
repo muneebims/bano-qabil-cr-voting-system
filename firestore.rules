@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidStudentId(studentId) {
+      return studentId is string && studentId.matches('^138[0-9]{4}$');
+    }
+
+    function isAdmin() {
+      return request.auth != null && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))) ||
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'muhammadmuneebims@gmail.com'
+      );
+    }
+
+    function isValidElectionState(data) {
+      return data.totalVotes is number &&
+        data.totalVotes >= 0 &&
+        data.maxVotes is number &&
+        data.maxVotes > 0 &&
+        data.totalVotes <= data.maxVotes &&
+        data.status in ['ACTIVE', 'PAUSED', 'COMPLETED'] &&
+        data.candidates is list;
+    }
+
+    function isValidVoteCast(newData, oldData) {
+      // Must be a valid election state
+      return isValidElectionState(newData) &&
+        // Total votes must increment by exactly 1
+        newData.totalVotes == oldData.totalVotes + 1 &&
+        // Must not exceed maxVotes
+        newData.totalVotes <= oldData.maxVotes &&
+        // Normal voters cannot alter maxVotes
+        newData.maxVotes == oldData.maxVotes &&
+        // Normal voters cannot alter electionId
+        newData.electionId == oldData.electionId &&
+        // Election must have been ACTIVE
+        oldData.status == 'ACTIVE' &&
+        // Status only changes to COMPLETED if maxVotes reached, otherwise stays ACTIVE
+        newData.status == (newData.totalVotes >= oldData.maxVotes ? 'COMPLETED' : 'ACTIVE') &&
+        // Candidate list must remain valid
+        newData.candidates is list &&
+        newData.candidates.size() == oldData.candidates.size();
+    }
+
+    function isValidVotedStudent(data, studentId) {
+      return isValidStudentId(studentId) &&
+        data.studentId == studentId &&
+        data.candidateId is string &&
+        data.candidateId.size() <= 64 &&
+        data.receiptCode is string &&
+        data.receiptCode.size() <= 128 &&
+        data.voteNumber is number &&
+        data.voteNumber > 0 &&
+        data.timestamp is string;
+    }
+
+    function isValidAuditVote(data) {
+      return data.studentId is string &&
+        isValidStudentId(data.studentId) &&
+        data.candidateId is string &&
+        data.receiptCode is string &&
+        data.voteNumber is number &&
+        data.voteNumber > 0;
+    }
+
+    // 1. Elections collection
+    match /elections/{electionId} {
+      allow read: if true;
+      // Creation: either admin or initializing clean 0-vote election
+      allow create: if (request.resource.data.totalVotes == 0 && isValidElectionState(request.resource.data)) || isAdmin();
+      // Update: either a valid atomic single-vote increment or admin operation
+      allow update: if isValidVoteCast(request.resource.data, resource.data) || isAdmin();
+      allow delete: if isAdmin();
+
+      // Subcollection: Voted students (double-vote guard & receipt verification)
+      match /voted_students/{studentId} {
+        allow get: if true;
+        allow list: if isAdmin();
+        // Create only once per student (resource == null ensures no overwriting an existing vote)
+        allow create: if isValidVotedStudent(request.resource.data, studentId) && resource == null;
+        // Updating or deleting cast votes is strictly forbidden for normal voters
+        allow update, delete: if isAdmin();
+      }
+
+      // Subcollection: Vote audit trail
+      match /votes/{voteId} {
+        allow read: if true;
+        allow create: if isValidAuditVote(request.resource.data);
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // 2. Authorized students roster (individual check permitted; dumping list restricted to admin)
+    match /authorized_students/{studentId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // 3. Election history archives (only admins can create/modify archive entries)
+    match /election_history/{historyId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // 4. Admins registry
+    match /admins/{adminId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Default deny for all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

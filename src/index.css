@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #050505;
+    color: #f1f5f9;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom glow and grid utilities for Immersive UI */
+.bg-immersive-radial {
+  background-color: #050505;
+  background-image: radial-gradient(circle at 50% -20%, #004d40 0%, #050505 80%);
+}
+
+.bg-dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.glow-emerald {
+  box-shadow: 0 0 15px rgba(0, 255, 156, 0.35);
+}
+
+.glow-emerald-sm {
+  box-shadow: 0 0 8px rgba(0, 255, 156, 0.4);
+}
+
